@@ -1,0 +1,100 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-home",
+      "description": "Dramatic landscape of Mongolian steppes at sunset.",
+      "imageUrl": "https://picsum.photos/seed/101/1800/1200",
+      "imageHint": "mongolian landscape"
+    },
+    {
+      "id": "about-section",
+      "description": "Close-up of artisan hands crafting a piece of jewelry.",
+      "imageUrl": "https://picsum.photos/seed/102/800/600",
+      "imageHint": "artisan hands"
+    },
+    {
+      "id": "hero-about",
+      "description": "Portrait of a Mongolian woman in traditional dress.",
+      "imageUrl": "https://picsum.photos/seed/103/1800/800",
+      "imageHint": "mongolian woman"
+    },
+    {
+      "id": "hero-collections",
+      "description": "A flat lay of various traditional Mongolian jewelry pieces.",
+      "imageUrl": "https://picsum.photos/seed/104/1800/600",
+      "imageHint": "jewelry flatlay"
+    },
+    {
+      "id": "hero-heritage",
+      "description": "Ancient Mongolian petroglyphs on a rock face.",
+      "imageUrl": "https://picsum.photos/seed/105/1800/800",
+      "imageHint": "mongolian petroglyphs"
+    },
+    {
+      "id": "heritage-craftsmanship",
+      "description": "A workshop with traditional jewelry making tools.",
+      "imageUrl": "https://picsum.photos/seed/106/800/600",
+      "imageHint": "artisan workshop"
+    },
+    {
+      "id": "hero-custom-order",
+      "description": "A detailed sketch of a custom jewelry design.",
+      "imageUrl": "https://picsum.photos/seed/107/1800/600",
+      "imageHint": "jewelry sketch"
+    },
+    {
+      "id": "hero-contact",
+      "description": "A close up of a vintage map showing Mongolia.",
+      "imageUrl": "https://picsum.photos/seed/108/1800/600",
+      "imageHint": "vintage map"
+    },
+    {
+      "id": "product-snuff-bottle-1",
+      "description": "An ornate silver snuff bottle with turquoise inlay.",
+      "imageUrl": "https://picsum.photos/seed/201/800/800",
+      "imageHint": "ornate bottle"
+    },
+    {
+      "id": "product-snuff-bottle-2",
+      "description": "A jade snuff bottle with gold accents.",
+      "imageUrl": "https://picsum.photos/seed/202/800/800",
+      "imageHint": "jade bottle"
+    },
+    {
+      "id": "product-ring-1",
+      "description": "A heavy silver ring with a large lapis lazuli stone.",
+      "imageUrl": "https://picsum.photos/seed/203/800/800",
+      "imageHint": "silver ring"
+    },
+    {
+      "id": "product-ring-2",
+      "description": "A delicate gold ring with a small coral piece.",
+      "imageUrl": "https://picsum.photos/seed/204/800/800",
+      "imageHint": "gold ring"
+    },
+    {
+      "id": "product-bracelet-1",
+      "description": "A bronze cuff bracelet with traditional Mongolian patterns.",
+      "imageUrl": "https://picsum.photos/seed/205/800/800",
+      "imageHint": "bronze cuff"
+    },
+    {
+      "id": "product-earrings-1",
+      "description": "Silver dangle earrings with turquoise beads.",
+      "imageUrl": "https://picsum.photos/seed/206/800/800",
+      "imageHint": "dangle earrings"
+    },
+    {
+      "id": "product-necklace-1",
+      "description": "A statement necklace with multiple strands of coral and silver beads.",
+      "imageUrl": "https://picsum.photos/seed/207/800/800",
+      "imageHint": "statement necklace"
+    },
+    {
+      "id": "product-stone-1",
+      "description": "A polished piece of agate with a custom silver clasp.",
+      "imageUrl": "https://picsum.photos/seed/208/800/800",
+      "imageHint": "polished agate"
+    }
+  ]
+}

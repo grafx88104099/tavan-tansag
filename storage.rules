@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function isImageUpload() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImageUpload();
+    }
+
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImageUpload();
+    }
+
+    match /brand/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImageUpload();
+    }
+
+    match /custom-orders/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    match /inquiries/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

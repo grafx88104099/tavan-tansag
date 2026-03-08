@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 35 38% 95%;
+    --foreground: 24 28% 16%;
+    --card: 34 43% 98%;
+    --card-foreground: 24 28% 16%;
+    --popover: 34 43% 98%;
+    --popover-foreground: 24 28% 16%;
+    --primary: 32 38% 49%;
+    --primary-foreground: 36 55% 97%;
+    --secondary: 35 32% 90%;
+    --secondary-foreground: 24 28% 18%;
+    --muted: 34 25% 90%;
+    --muted-foreground: 26 18% 38%;
+    --accent: 35 39% 87%;
+    --accent-foreground: 24 28% 18%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 30 24% 78%;
+    --input: 34 24% 84%;
+    --ring: 32 38% 49%;
+    --radius: 1rem;
+    --chart-1: 32 38% 49%;
+    --chart-2: 22 40% 30%;
+    --chart-3: 38 48% 64%;
+    --chart-4: 12 39% 56%;
+    --chart-5: 48 28% 42%;
+    --surface-soft: 36 33% 97%;
+    --surface-strong: 31 20% 23%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply text-foreground;
+    background-color: #ad814e;
+    background-image:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(75, 49, 24, 0.08)),
+      radial-gradient(circle at top, rgba(255, 244, 230, 0.12), transparent 40%);
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-headline;
+    letter-spacing: -0.025em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: rgba(173, 129, 78, 0.22);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer components {
+  .brand-pattern {
+    background-image: url('/pattern-knot.svg');
+    background-position: center;
+    background-repeat: repeat;
+    background-size: 168px 168px;
+  }
+
+  .section-kicker {
+    @apply inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em];
+  }
+
+  .section-shell {
+    @apply overflow-hidden rounded-3xl border border-border/70 bg-card/85;
+    box-shadow: 0 22px 60px rgba(72, 47, 21, 0.1);
+    backdrop-filter: blur(16px);
+  }
+
+  .ornament-divider {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  .ornament-divider::before,
+  .ornament-divider::after {
+    content: '';
+    height: 1px;
+    width: 4rem;
+    background: linear-gradient(90deg, transparent, rgba(173, 129, 78, 0.8), transparent);
+  }
+
+  .soft-outline {
+    position: relative;
+  }
+
+  .soft-outline::after {
+    content: '';
+    position: absolute;
+    inset: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: calc(1.5rem - 0.2rem);
+    pointer-events: none;
+  }
+}
