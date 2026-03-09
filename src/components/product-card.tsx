@@ -9,6 +9,8 @@ import {
   getProductDisplayDescription,
   getProductDisplayName,
   getStoneLabel,
+  hasProductPrice,
+  hasProductStone,
 } from '@/lib/product-copy';
 import { Card, CardContent } from '@/components/ui/card';
 import { SaveProductButton } from '@/components/save-product-button';
@@ -31,6 +33,8 @@ export function ProductCard({ product, displayName, displayCategory }: ProductCa
   const category = displayCategory ?? getCategoryLabel(product.category);
   const description = getProductDisplayDescription(product);
   const stoneLabel = getStoneLabel(product.stoneType);
+  const showStone = hasProductStone(product);
+  const showPrice = hasProductPrice(product);
   
   return (
     <Card className="group relative h-full overflow-hidden border-primary/10 transition-all duration-500 ease-in-out hover:-translate-y-1.5 hover:border-primary/30 hover:shadow-[0_24px_60px_rgba(67,46,20,0.14)]">
@@ -62,12 +66,12 @@ export function ProductCard({ product, displayName, displayCategory }: ProductCa
 
             <div className="mt-auto flex items-end justify-between gap-4">
               <div className="space-y-1">
-                {product.stoneType !== 'None' && (
+                {showStone && (
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     {stoneLabel}
                   </p>
                 )}
-                <p className="text-lg font-semibold text-primary">{formatProductPrice(product.price)}</p>
+                {showPrice && <p className="text-lg font-semibold text-primary">{formatProductPrice(product.price)}</p>}
               </div>
               <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground/75 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-primary">
                 Дэлгэрэнгүй

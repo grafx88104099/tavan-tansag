@@ -9,7 +9,6 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
-  writeBatch,
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
@@ -19,7 +18,6 @@ import {
   Plus,
   ShieldCheck,
   Trash2,
-  Upload,
   UserRound,
   Video,
 } from 'lucide-react';
@@ -58,30 +56,17 @@ import { firestoreDb, firebaseStorage } from '@/lib/firebase';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import {
   getCategoryLabel,
-  getMaterialLabel,
   getProductDisplayDescription,
-  getProductDisplayName,
-  getStoneLabel,
 } from '@/lib/product-copy';
-import {
-  PRODUCT_CATEGORIES,
-  PRODUCT_MATERIALS,
-  PRODUCT_STONE_TYPES,
-  getProducts,
-} from '@/lib/products';
+import { PRODUCT_CATEGORIES } from '@/lib/products';
 import type { Product, UserProfile } from '@/lib/types';
 
 type ProductFormState = {
   id: string | null;
   name: string;
   category: Product['category'];
-  stoneType: Product['stoneType'];
-  material: Product['material'];
   description: string;
-  size: string;
-  price: string;
   coverImageUrl: string;
-  coverImageHint: string;
   images: string[];
   createdAt: Date | null;
   coverImagePath: string | null;
@@ -100,13 +85,8 @@ const DEFAULT_PRODUCT_FORM: ProductFormState = {
   id: null,
   name: '',
   category: 'Snuff Bottle',
-  stoneType: 'Turquoise',
-  material: 'Silver',
   description: '',
-  size: '',
-  price: '',
   coverImageUrl: '',
-  coverImageHint: '',
   images: [],
   createdAt: null,
   coverImagePath: null,
@@ -142,38 +122,12 @@ function createProductForm(product?: Product): ProductFormState {
     id: product.id,
     name: product.name,
     category: product.category,
-    stoneType: product.stoneType,
-    material: product.material,
     description: product.description,
-    size: product.size,
-    price: product.price.toString(),
     coverImageUrl: product.coverImageUrl ?? '',
-    coverImageHint: product.coverImageHint ?? '',
     images: product.images,
     createdAt: product.createdAt ?? null,
     coverImagePath: product.coverImagePath ?? null,
   };
-}
-
-function normalizePriceInput(value: string) {
-  const sanitizedValue = value.replace(',', '.').replace(/[^\d.]/g, '');
-  const parts = sanitizedValue.split('.');
-
-  if (parts.length <= 1) {
-    return sanitizedValue;
-  }
-
-  return `${parts[0]}.${parts.slice(1).join('')}`;
-}
-
-function parsePriceInput(value: string) {
-  const normalizedValue = normalizePriceInput(value);
-
-  if (!normalizedValue) {
-    return Number.NaN;
-  }
-
-  return Number(normalizedValue);
 }
 
 function formatAdminDate(value: Date | null) {
@@ -211,7 +165,6 @@ export function AdminConsole() {
   } = useAuth();
   const {
     products,
-    isUsingFallback,
     hasRemoteProducts,
   } = useCatalogProducts();
   const { heritageReel } = useHeritageReel();
@@ -222,7 +175,6 @@ export function AdminConsole() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isGooglePending, setIsGooglePending] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [isSeedingProducts, setIsSeedingProducts] = useState(false);
   const [productForm, setProductForm] = useState<ProductFormState>(DEFAULT_PRODUCT_FORM);
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -402,55 +354,6 @@ export function AdminConsole() {
     }
   }
 
-  async function handleSeedProducts() {
-    if (!firestoreDb) {
-      toast({
-        title: 'Firestore холбогдоогүй байна',
-        description: 'Firebase тохиргоог шалгана уу.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      setIsSeedingProducts(true);
-      const batch = writeBatch(firestoreDb);
-
-      for (const product of getProducts()) {
-        const productRef = doc(firestoreDb, 'products', product.id);
-        batch.set(productRef, {
-          name: getProductDisplayName(product),
-          category: product.category,
-          stoneType: product.stoneType,
-          material: product.material,
-          description: getProductDisplayDescription(product),
-          size: product.size,
-          price: product.price,
-          images: product.images,
-          coverImageUrl: product.coverImageUrl ?? null,
-          coverImagePath: product.coverImagePath ?? null,
-          coverImageHint: product.coverImageHint ?? null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
-
-      await batch.commit();
-      toast({
-        title: 'Бүтээгдэхүүнүүд Firebase руу орлоо',
-        description: 'Одоо add/edit/delete үйлдлүүд live ажиллана.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Импорт хийж чадсангүй',
-        description: getAuthErrorMessage(error),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSeedingProducts(false);
-    }
-  }
-
   function handleCreateProduct() {
     resetProductForm();
     setIsProductDialogOpen(true);
@@ -481,13 +384,21 @@ export function AdminConsole() {
 
     const trimmedName = productForm.name.trim();
     const trimmedDescription = productForm.description.trim();
-    const trimmedSize = productForm.size.trim();
-    const priceValue = parsePriceInput(productForm.price);
+    const hasExistingImage = Boolean(productForm.coverImageUrl.trim() || productForm.images.length > 0);
 
-    if (trimmedName.length < 2 || trimmedDescription.length < 10 || trimmedSize.length < 1 || !Number.isFinite(priceValue) || priceValue < 0) {
+    if (trimmedName.length < 2 || trimmedDescription.length < 2) {
       toast({
         title: 'Бүтээгдэхүүний мэдээллээ шалгана уу',
-        description: 'Нэр, тайлбар, хэмжээ, үнийг зөв бөглөөд дахин хадгална уу.',
+        description: 'Нэр болон тайлбараа бөглөөд дахин хадгална уу.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!productImageFile && !hasExistingImage) {
+      toast({
+        title: 'Зураг дутуу байна',
+        description: 'Шинэ бүтээгдэхүүнд дор хаяж нэг зураг upload хийнэ үү.',
         variant: 'destructive',
       });
       return;
@@ -517,15 +428,15 @@ export function AdminConsole() {
       await setDoc(doc(firestoreDb, 'products', productId), {
         name: trimmedName,
         category: productForm.category,
-        stoneType: productForm.stoneType,
-        material: productForm.material,
+        stoneType: 'None',
+        material: 'Mixed',
         description: trimmedDescription,
-        size: trimmedSize,
-        price: priceValue,
+        size: 'Standard',
+        price: 0,
         images: productForm.images,
         coverImageUrl,
         coverImagePath,
-        coverImageHint: productForm.coverImageHint.trim() || null,
+        coverImageHint: null,
         createdAt: productForm.createdAt ? Timestamp.fromDate(productForm.createdAt) : serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -824,30 +735,6 @@ export function AdminConsole() {
       </div>
 
       <TabsContent value="products" className="space-y-6">
-        {isUsingFallback && !hasRemoteProducts && (
-          <Card className="border-primary/12 bg-white/88">
-            <CardHeader>
-              <CardTitle>Sample бүтээгдэхүүнүүд Firebase руу ороогүй байна</CardTitle>
-              <CardDescription>
-                Нүүр хуудас одоогоор fallback sample data ашиглаж байна. Та sample import хийж болно, эсвэл шууд шинэ live бүтээгдэхүүн нэмж эхэлж болно.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm leading-7 text-muted-foreground">Нийт {products.length} sample бүтээгдэхүүн импортлоход бэлэн байна.</p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button type="button" variant="outline" onClick={handleCreateProduct}>
-                  <Plus className="h-4 w-4" />
-                  Шинэ бүтээгдэхүүн нэмэх
-                </Button>
-                <Button type="button" onClick={handleSeedProducts} disabled={isSeedingProducts}>
-                  {isSeedingProducts ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Firebase руу импортлох
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         <Card className="border-primary/12 bg-white/88">
           <CardHeader className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -855,7 +742,7 @@ export function AdminConsole() {
               <CardDescription>
                 {hasRemoteProducts
                   ? `Одоогоор ${liveProducts.length} бүтээгдэхүүн live каталогт байна.`
-                  : 'Одоогоор live бүтээгдэхүүн алга байна. Шинээр нэмэх эсвэл sample import хийж эхэлнэ үү.'}
+                  : 'Одоогоор live бүтээгдэхүүн алга байна. Шинэ бүтээгдэхүүн нэмээд эхэлнэ үү.'}
               </CardDescription>
             </div>
             <Button type="button" onClick={handleCreateProduct}>
@@ -885,10 +772,7 @@ export function AdminConsole() {
                       <div>
                         <p className="font-semibold text-foreground">{product.name}</p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {getCategoryLabel(product.category)} · ${product.price.toLocaleString()}
-                        </p>
-                        <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                          {getStoneLabel(product.stoneType)} · {getMaterialLabel(product.material)}
+                          {getCategoryLabel(product.category)}
                         </p>
                         <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground">
                           {product.description}
@@ -926,7 +810,7 @@ export function AdminConsole() {
                 </div>
                 <h3 className="mt-5 text-2xl font-semibold">Анхны бүтээгдэхүүнээ нэмнэ үү</h3>
                 <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                  `Шинэ бүтээгдэхүүн нэмэх` товчоор цонх нээгээд нэр, тайлбар, зураг, үнийг оруулснаар нүүр хуудасны каталог шууд live болно.
+                  `Шинэ бүтээгдэхүүн нэмэх` товчоор цонх нээгээд нэр, ангилал, зураг, тайлбараа оруулан каталогтоо шууд нэмнэ.
                 </p>
                 <Button type="button" className="mt-6" onClick={handleCreateProduct}>
                   <Plus className="h-4 w-4" />
@@ -959,13 +843,13 @@ export function AdminConsole() {
                 {productForm.id ? 'Бүтээгдэхүүн засах' : 'Шинэ бүтээгдэхүүн нэмэх'}
               </DialogTitle>
               <DialogDescription className="text-sm leading-7 text-muted-foreground">
-                Зураг upload эсвэл image URL ашиглаж, хадгалмагц нүүр хуудасны каталог дээр шууд гаргана.
+                Зөвхөн үндсэн мэдээллээ оруулаад хадгалахад нүүр хуудасны каталог дээр шууд гарна.
               </DialogDescription>
             </DialogHeader>
 
             <form className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]" onSubmit={handleSaveProduct}>
               <div className="space-y-5">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
                   <div className="space-y-2">
                     <Label htmlFor="product-name">Нэр</Label>
                     <Input
@@ -975,26 +859,9 @@ export function AdminConsole() {
                       placeholder="Бүтээлийн нэр"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="product-price">Үнэ (USD)</Label>
-                    <Input
-                      id="product-price"
-                      type="text"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      value={productForm.price}
-                      onChange={(event) =>
-                        setProductForm((current) => ({
-                          ...current,
-                          price: normalizePriceInput(event.target.value),
-                        }))
-                      }
-                      placeholder="Жишээ нь: 1200"
-                    />
-                  </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
                   <div className="space-y-2">
                     <Label htmlFor="product-category">Ангилал</Label>
                     <select
@@ -1012,72 +879,9 @@ export function AdminConsole() {
                         <option key={item} value={item}>
                           {getCategoryLabel(item)}
                         </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="product-stone">Чулуу</Label>
-                    <select
-                      id="product-stone"
-                      className="flex h-11 w-full rounded-2xl border border-input bg-background px-4 text-sm"
-                      value={productForm.stoneType}
-                      onChange={(event) =>
-                        setProductForm((current) => ({
-                          ...current,
-                          stoneType: event.target.value as Product['stoneType'],
-                        }))
-                      }
-                    >
-                      {PRODUCT_STONE_TYPES.map((item) => (
-                        <option key={item} value={item}>
-                          {getStoneLabel(item)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="product-material">Материал</Label>
-                    <select
-                      id="product-material"
-                      className="flex h-11 w-full rounded-2xl border border-input bg-background px-4 text-sm"
-                      value={productForm.material}
-                      onChange={(event) =>
-                        setProductForm((current) => ({
-                          ...current,
-                          material: event.target.value as Product['material'],
-                        }))
-                      }
-                    >
-                      {PRODUCT_MATERIALS.map((item) => (
-                        <option key={item} value={item}>
-                          {getMaterialLabel(item)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="product-size">Хэмжээ</Label>
-                    <Input
-                      id="product-size"
-                      value={productForm.size}
-                      onChange={(event) => setProductForm((current) => ({ ...current, size: event.target.value }))}
-                      placeholder="Жишээ нь: 45см"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="product-image-hint">Image hint</Label>
-                    <Input
-                      id="product-image-hint"
-                      value={productForm.coverImageHint}
-                      onChange={(event) =>
-                        setProductForm((current) => ({ ...current, coverImageHint: event.target.value }))
-                      }
-                      placeholder="Жишээ нь: silver ring"
-                    />
-                  </div>
+                        ))}
+                      </select>
+                    </div>
                 </div>
 
                 <div className="space-y-2">
@@ -1091,20 +895,8 @@ export function AdminConsole() {
                     }
                   />
                   <p className="text-xs leading-6 text-muted-foreground">
-                    Файл сонговол image URL-ээс давуу ашиглагдана.
+                    Нэг зураг upload хийхэд хангалттай.
                   </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="product-image-url">Эсвэл cover image URL</Label>
-                  <Input
-                    id="product-image-url"
-                    value={productForm.coverImageUrl}
-                    onChange={(event) =>
-                      setProductForm((current) => ({ ...current, coverImageUrl: event.target.value }))
-                    }
-                    placeholder="https://..."
-                  />
                 </div>
 
                 <div className="space-y-2">
@@ -1150,7 +942,7 @@ export function AdminConsole() {
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center px-6 text-center text-sm leading-7 text-muted-foreground">
-                        Зураг upload хийх эсвэл image URL оруулахад preview энд харагдана.
+                        Upload хийсэн зураг энд preview хэлбэрээр харагдана.
                       </div>
                     )}
                   </div>
@@ -1159,7 +951,7 @@ export function AdminConsole() {
                 <div className="rounded-[1.6rem] border border-primary/12 bg-white/72 p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Оруулах мэдээлэл</p>
                   <div className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
-                    <p>Нэр, тайлбар, хэмжээ, үнэ дөрөвийг бөглөх шаардлагатай.</p>
+                    <p>Нэр, ангилал, зураг, тайлбар гэсэн 4 үндсэн талбар ашиглана.</p>
                     <p>Зураг upload хийхэд Storage дээр хадгалагдаж, нүүр хуудсанд автоматаар ашиглагдана.</p>
                     <p>Хадгалсны дараа каталог шинэчлэгдэж шууд live болно.</p>
                   </div>

@@ -11,13 +11,10 @@ import {
 } from 'firebase/firestore';
 
 import { firestoreDb } from '@/lib/firebase';
-import { getProducts } from '@/lib/products';
 import type { HeritageReel, Product, UserProfile } from '@/lib/types';
 
-const FALLBACK_PRODUCTS = getProducts();
-
 const FALLBACK_HERITAGE_REEL: HeritageReel = {
-  title: 'Өв соёл',
+  title: '',
   videoUrl: null,
   videoPath: null,
   posterImageUrl: null,
@@ -98,13 +95,13 @@ function normalizeUserProfile(id: string, data: Record<string, unknown>): UserPr
 }
 
 export function useCatalogProducts() {
-  const [products, setProducts] = useState<Product[]>(FALLBACK_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(Boolean(firestoreDb));
   const [hasRemoteProducts, setHasRemoteProducts] = useState(false);
 
   useEffect(() => {
     if (!firestoreDb) {
-      setProducts(FALLBACK_PRODUCTS);
+      setProducts([]);
       setHasRemoteProducts(false);
       setIsLoading(false);
       return;
@@ -122,14 +119,14 @@ export function useCatalogProducts() {
           setProducts(remoteProducts);
           setHasRemoteProducts(true);
         } else {
-          setProducts(FALLBACK_PRODUCTS);
+          setProducts([]);
           setHasRemoteProducts(false);
         }
 
         setIsLoading(false);
       },
       () => {
-        setProducts(FALLBACK_PRODUCTS);
+        setProducts([]);
         setHasRemoteProducts(false);
         setIsLoading(false);
       }
@@ -143,7 +140,6 @@ export function useCatalogProducts() {
       products,
       isLoading,
       hasRemoteProducts,
-      isUsingFallback: !hasRemoteProducts,
     }),
     [hasRemoteProducts, isLoading, products]
   );

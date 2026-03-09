@@ -10,9 +10,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useCatalogProducts } from '@/hooks/use-store-data';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthErrorMessage, getProviderLabel, getUserInitial } from '@/lib/auth-utils';
-import { getProductById } from '@/lib/products';
 
 function formatProfileDate(value: Date | null) {
   if (!value) {
@@ -29,14 +29,15 @@ function formatProfileDate(value: Date | null) {
 export function ProfileDashboard() {
   const { toast } = useToast();
   const { authStatus, currentUser, profile, savedProducts, signOutUser } = useAuth();
+  const { products } = useCatalogProducts();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const savedCatalog = useMemo(
     () =>
       savedProducts
-        .map((item) => getProductById(item.productId))
-        .filter((product): product is NonNullable<ReturnType<typeof getProductById>> => Boolean(product)),
-    [savedProducts]
+        .map((item) => products.find((product) => product.id === item.productId))
+        .filter((product): product is NonNullable<(typeof products)[number]> => Boolean(product)),
+    [products, savedProducts]
   );
 
   async function handleSignOut() {

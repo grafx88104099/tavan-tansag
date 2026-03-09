@@ -6,14 +6,10 @@ import Link from 'next/link';
 import { useCatalogProducts } from '@/hooks/use-store-data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import {
-  formatProductPrice,
   getCategoryLabel,
-  getMaterialLabel,
   getProductDisplayDescription,
   getProductDisplayName,
-  getStoneLabel,
 } from '@/lib/product-copy';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -23,7 +19,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Separator } from '@/components/ui/separator';
 
 type ProductDetailPageProps = {
   productId: string;
@@ -52,8 +47,6 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
   const displayName = getProductDisplayName(product);
   const displayDescription = getProductDisplayDescription(product);
   const categoryLabel = getCategoryLabel(product.category);
-  const materialLabel = getMaterialLabel(product.material);
-  const stoneLabel = getStoneLabel(product.stoneType);
   const productImages: Array<{ imageUrl: string; imageHint: string }> = product.coverImageUrl
     ? [
         {
@@ -119,42 +112,12 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
         </div>
 
         <div className="section-shell px-6 py-8 md:px-10 md:py-10">
-          <div className="space-y-6">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{categoryLabel}</Badge>
-              {product.stoneType !== 'None' && <Badge variant="outline">{stoneLabel}</Badge>}
-            </div>
-
+          <div className="space-y-8">
             <div className="space-y-4">
-              <span className="section-kicker border-primary/20 bg-primary/8 text-primary">Мөнх Үргэлжлэх Монгол Өв</span>
+              <span className="section-kicker border-primary/20 bg-primary/8 text-primary">Ангилал · {categoryLabel}</span>
               <h1 className="text-4xl font-semibold leading-tight md:text-5xl">{displayName}</h1>
-              <p className="text-3xl font-semibold text-primary">{formatProductPrice(product.price)}</p>
+              <p className="text-base leading-8 text-muted-foreground md:text-lg">{displayDescription}</p>
             </div>
-
-            <Separator />
-            <p className="text-base leading-8 text-muted-foreground md:text-lg">{displayDescription}</p>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[1.5rem] border border-primary/12 bg-white/60 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Материал</p>
-                <p className="mt-2 text-lg font-semibold">{materialLabel}</p>
-              </div>
-              <div className="rounded-[1.5rem] border border-primary/12 bg-white/60 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Чулуу</p>
-                <p className="mt-2 text-lg font-semibold">{stoneLabel}</p>
-              </div>
-              <div className="rounded-[1.5rem] border border-primary/12 bg-white/60 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Хэмжээ</p>
-                <p className="mt-2 text-lg font-semibold">{product.size}</p>
-              </div>
-              <div className="rounded-[1.5rem] border border-primary/12 bg-white/60 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Төрөл</p>
-                <p className="mt-2 text-lg font-semibold">{categoryLabel}</p>
-              </div>
-            </div>
-
-            <Separator />
-
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg" variant="outline">
                 <Link href="/">Цуглуулга руу буцах</Link>

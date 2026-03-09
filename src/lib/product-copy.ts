@@ -100,6 +100,22 @@ export function getMaterialLabel(material: Product['material']) {
   return materialLabels[material];
 }
 
+export function hasProductPrice(product: Product) {
+  return product.price > 0;
+}
+
+export function hasProductStone(product: Product) {
+  return product.stoneType !== 'None';
+}
+
+export function hasProductMaterial(product: Product) {
+  return product.material !== 'Mixed';
+}
+
+export function hasProductSize(product: Product) {
+  return product.size.trim() !== '' && product.size !== 'Standard';
+}
+
 export function formatProductPrice(price: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
