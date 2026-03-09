@@ -1,8 +1,9 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  // Keep production builds separate from the dev Turbopack cache.
-  distDir: process.env.NODE_ENV === 'production' ? '.next-build' : '.next',
+  // Keep local dev Turbopack cache separate while preserving Vercel's default
+  // production output directory (.next).
+  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
