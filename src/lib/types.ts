@@ -8,6 +8,11 @@ export type Product = {
   size: string;
   price: number;
   images: string[];
+  coverImageUrl?: string | null;
+  coverImagePath?: string | null;
+  coverImageHint?: string | null;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
 };
 
 export type UserProfile = {
@@ -16,6 +21,7 @@ export type UserProfile = {
   displayName: string | null;
   photoURL: string | null;
   providerIds: string[];
+  role: 'customer' | 'admin';
   createdAt: Date | null;
   updatedAt: Date | null;
   lastLoginAt: Date | null;
@@ -24,4 +30,12 @@ export type UserProfile = {
 export type SavedProductRecord = {
   productId: string;
   savedAt: Date | null;
+};
+
+export type HeritageReel = {
+  title: string;
+  videoUrl: string | null;
+  videoPath: string | null;
+  posterImageUrl: string | null;
+  updatedAt: Date | null;
 };

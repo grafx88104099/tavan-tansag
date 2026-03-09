@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useCatalogProducts } from '@/hooks/use-store-data';
 import {
   getCategoryLabel,
   getMaterialLabel,
@@ -15,7 +16,7 @@ import {
   getProductDisplayName,
   getStoneLabel,
 } from '@/lib/product-copy';
-import { getProductCategories, getProducts, getProductStoneTypes } from '@/lib/products';
+import { getProductCategories, getProductStoneTypes } from '@/lib/products';
 
 type ProductCatalogProps = {
   title?: string;
@@ -28,9 +29,9 @@ export function ProductCatalog({
   description = 'Хайлт болон шүүлтүүр ашиглаад өөрт тохирох бүтээлийг шууд олоорой.',
   showIntro = true,
 }: ProductCatalogProps) {
-  const allProducts = useMemo(() => getProducts(), []);
-  const categories = useMemo(() => ['All', ...getProductCategories()], []);
-  const stoneTypes = useMemo(() => ['All', ...getProductStoneTypes()], []);
+  const { products: allProducts } = useCatalogProducts();
+  const categories = useMemo(() => ['All', ...getProductCategories(allProducts)], [allProducts]);
+  const stoneTypes = useMemo(() => ['All', ...getProductStoneTypes(allProducts)], [allProducts]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');

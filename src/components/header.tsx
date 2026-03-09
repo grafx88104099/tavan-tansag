@@ -15,8 +15,6 @@ import { cn } from '@/lib/utils';
 const navLinks = [
   { href: '/', label: 'Нүүр' },
   { href: '/heritage', label: 'Өв соёл' },
-  { href: '/custom-order', label: 'Захиалгат бүтээл' },
-  { href: '/contact', label: 'Холбоо барих' },
 ];
 
 export function Header() {
@@ -61,12 +59,6 @@ export function Header() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 xl:flex">
-          <Button asChild variant="ghost">
-            <Link href="/story-generator">Өвийн түүх</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/custom-order">Захиалах</Link>
-          </Button>
           <AccountControls />
         </div>
 
@@ -103,16 +95,6 @@ export function Header() {
                 </nav>
                 <div className="mt-auto space-y-3 p-5">
                   <AccountControls mobile onNavigate={() => setMobileMenuOpen(false)} />
-                  <Button asChild variant="outline" className="w-full">
-                    <Link href="/story-generator" onClick={() => setMobileMenuOpen(false)}>
-                      Өвийн түүх үүсгэх
-                    </Link>
-                  </Button>
-                  <Button asChild className="w-full">
-                    <Link href="/custom-order" onClick={() => setMobileMenuOpen(false)}>
-                      Захиалах
-                    </Link>
-                  </Button>
                 </div>
               </div>
             </SheetContent>

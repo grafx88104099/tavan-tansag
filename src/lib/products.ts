@@ -1,5 +1,25 @@
 import type { Product } from './types';
 
+export const PRODUCT_CATEGORIES: Product['category'][] = [
+  'Snuff Bottle',
+  'Ring',
+  'Bracelet',
+  'Earrings',
+  'Necklace',
+  'Stone Jewelry',
+];
+
+export const PRODUCT_STONE_TYPES: Product['stoneType'][] = [
+  'Turquoise',
+  'Jade',
+  'Coral',
+  'Lapis Lazuli',
+  'Agate',
+  'None',
+];
+
+export const PRODUCT_MATERIALS: Product['material'][] = ['Silver', 'Gold', 'Bronze', 'Mixed'];
+
 const products: Product[] = [
   {
     id: '1',
@@ -99,12 +119,12 @@ export function getProductById(id: string) {
   return products.find((p) => p.id === id);
 }
 
-export function getProductCategories() {
-  const categories = products.map(p => p.category);
+export function getProductCategories(productList = products) {
+  const categories = productList.map((p) => p.category);
   return [...new Set(categories)];
 }
 
-export function getProductStoneTypes() {
-  const stones = products.map(p => p.stoneType);
+export function getProductStoneTypes(productList = products) {
+  const stones = productList.map((p) => p.stoneType);
   return [...new Set(stones)];
 }

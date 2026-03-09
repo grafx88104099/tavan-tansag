@@ -6,8 +6,25 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAllowedAdminEmail() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email == 'amardelgerekh@gmail.com';
+    }
+
+    function hasAdminRole() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     function isAdmin() {
-      return isSignedIn() && request.auth.token.admin == true;
+      return isSignedIn()
+        && (
+          request.auth.token.admin == true
+          || isAllowedAdminEmail()
+          || hasAdminRole()
+        );
     }
 
     function isOwnUser(uid) {
@@ -20,6 +37,14 @@ service cloud.firestore {
         && email.matches('^.+@.+\\..+$');
     }
 
+    function isValidRole(role) {
+      return role == 'customer' || role == 'admin';
+    }
+
+    function hasValidProviderIds(providerIds) {
+      return providerIds is list && providerIds.size() <= 10;
+    }
+
     function isValidUserProfile(uid) {
       return request.resource.data.keys().hasOnly([
           'uid',
@@ -27,11 +52,13 @@ service cloud.firestore {
           'displayName',
           'photoURL',
           'providerIds',
+          'role',
           'createdAt',
           'updatedAt',
           'lastLoginAt'
         ])
         && request.resource.data.uid == uid
+        && isValidRole(request.resource.data.role)
         && (request.resource.data.email == null || isValidEmail(request.resource.data.email))
         && (
           !('displayName' in request.resource.data)
@@ -52,14 +79,25 @@ service cloud.firestore {
         )
         && (
           !('providerIds' in request.resource.data)
-          || (
-            request.resource.data.providerIds is list
-            && request.resource.data.providerIds.size() <= 10
-          )
+          || hasValidProviderIds(request.resource.data.providerIds)
         )
         && request.resource.data.createdAt is timestamp
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.lastLoginAt is timestamp;
+    }
+
+    function isOwnUserProfileCreate(uid) {
+      return isOwnUser(uid)
+        && isValidUserProfile(uid)
+        && request.resource.data.role == 'customer';
+    }
+
+    function isOwnUserProfileUpdate(uid) {
+      return isOwnUser(uid)
+        && resource != null
+        && isValidUserProfile(uid)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
 
     function isValidSavedProduct(productId) {
@@ -71,69 +109,145 @@ service cloud.firestore {
         && request.resource.data.savedAt is timestamp;
     }
 
-    function isPublicInquiryPayload() {
-      return request.resource.data.keys().hasOnly([
-          'name',
-          'email',
-          'message',
-          'createdAt',
-          'status',
-          'source'
-        ])
-        && request.resource.data.keys().hasAll(['name', 'email', 'message', 'createdAt'])
-        && request.resource.data.name is string
-        && request.resource.data.name.size() >= 2
-        && request.resource.data.name.size() <= 120
-        && isValidEmail(request.resource.data.email)
-        && request.resource.data.message is string
-        && request.resource.data.message.size() >= 10
-        && request.resource.data.message.size() <= 3000
-        && request.resource.data.createdAt is timestamp
-        && (!('status' in request.resource.data) || request.resource.data.status == 'Шинэ')
-        && (!('source' in request.resource.data) || request.resource.data.source is string);
+    function isValidProductCategory() {
+      return request.resource.data.category == 'Snuff Bottle'
+        || request.resource.data.category == 'Ring'
+        || request.resource.data.category == 'Bracelet'
+        || request.resource.data.category == 'Earrings'
+        || request.resource.data.category == 'Necklace'
+        || request.resource.data.category == 'Stone Jewelry';
     }
 
-    function isPublicCustomOrderPayload() {
+    function isValidProductStoneType() {
+      return request.resource.data.stoneType == 'Turquoise'
+        || request.resource.data.stoneType == 'Jade'
+        || request.resource.data.stoneType == 'Coral'
+        || request.resource.data.stoneType == 'Lapis Lazuli'
+        || request.resource.data.stoneType == 'Agate'
+        || request.resource.data.stoneType == 'None';
+    }
+
+    function isValidProductMaterial() {
+      return request.resource.data.material == 'Silver'
+        || request.resource.data.material == 'Gold'
+        || request.resource.data.material == 'Bronze'
+        || request.resource.data.material == 'Mixed';
+    }
+
+    function isValidProductPayload(productId) {
       return request.resource.data.keys().hasOnly([
           'name',
-          'email',
-          'message',
-          'productType',
-          'materials',
-          'stone',
+          'category',
+          'stoneType',
+          'material',
+          'description',
+          'size',
+          'price',
+          'images',
+          'coverImageUrl',
+          'coverImagePath',
+          'coverImageHint',
           'createdAt',
-          'status',
-          'source'
+          'updatedAt'
         ])
-        && request.resource.data.keys().hasAll(['name', 'email', 'message', 'createdAt'])
+        && productId.size() > 0
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 2
-        && request.resource.data.name.size() <= 120
-        && isValidEmail(request.resource.data.email)
-        && request.resource.data.message is string
-        && request.resource.data.message.size() >= 10
-        && request.resource.data.message.size() <= 4000
-        && (!('productType' in request.resource.data) || request.resource.data.productType is string)
-        && (!('materials' in request.resource.data) || request.resource.data.materials is string)
-        && (!('stone' in request.resource.data) || request.resource.data.stone is string)
+        && request.resource.data.name.size() <= 160
+        && isValidProductCategory()
+        && isValidProductStoneType()
+        && isValidProductMaterial()
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 10
+        && request.resource.data.description.size() <= 3000
+        && request.resource.data.size is string
+        && request.resource.data.size.size() >= 1
+        && request.resource.data.size.size() <= 120
+        && request.resource.data.price is number
+        && request.resource.data.price >= 0
+        && (
+          !('images' in request.resource.data)
+          || request.resource.data.images is list
+        )
+        && (
+          !('coverImageUrl' in request.resource.data)
+          || request.resource.data.coverImageUrl == null
+          || (
+            request.resource.data.coverImageUrl is string
+            && request.resource.data.coverImageUrl.size() <= 2000
+          )
+        )
+        && (
+          !('coverImagePath' in request.resource.data)
+          || request.resource.data.coverImagePath == null
+          || (
+            request.resource.data.coverImagePath is string
+            && request.resource.data.coverImagePath.size() <= 300
+          )
+        )
+        && (
+          !('coverImageHint' in request.resource.data)
+          || request.resource.data.coverImageHint == null
+          || (
+            request.resource.data.coverImageHint is string
+            && request.resource.data.coverImageHint.size() <= 120
+          )
+        )
         && request.resource.data.createdAt is timestamp
-        && (!('status' in request.resource.data) || request.resource.data.status == 'Шинэ')
-        && (!('source' in request.resource.data) || request.resource.data.source is string);
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidHeritagePayload() {
+      return request.resource.data.keys().hasOnly([
+          'title',
+          'videoUrl',
+          'videoPath',
+          'posterImageUrl',
+          'updatedAt'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 2
+        && request.resource.data.title.size() <= 160
+        && (
+          request.resource.data.videoUrl == null
+          || (
+            request.resource.data.videoUrl is string
+            && request.resource.data.videoUrl.size() <= 2000
+          )
+        )
+        && (
+          request.resource.data.videoPath == null
+          || (
+            request.resource.data.videoPath is string
+            && request.resource.data.videoPath.size() <= 300
+          )
+        )
+        && (
+          request.resource.data.posterImageUrl == null
+          || (
+            request.resource.data.posterImageUrl is string
+            && request.resource.data.posterImageUrl.size() <= 2000
+          )
+        )
+        && request.resource.data.updatedAt is timestamp;
     }
 
     match /products/{productId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && isValidProductPayload(productId);
+      allow delete: if isAdmin();
     }
 
-    match /siteSettings/{document=**} {
+    match /siteSettings/{documentId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if isAdmin() && documentId == 'heritage' && isValidHeritagePayload();
+      allow delete: if isAdmin();
     }
 
     match /users/{uid} {
       allow read: if isAdmin() || isOwnUser(uid);
-      allow create, update: if isAdmin() || (isOwnUser(uid) && isValidUserProfile(uid));
+      allow create: if (isAdmin() && isValidUserProfile(uid)) || isOwnUserProfileCreate(uid);
+      allow update: if (isAdmin() && isValidUserProfile(uid)) || isOwnUserProfileUpdate(uid);
       allow delete: if isAdmin();
 
       match /savedProducts/{productId} {
@@ -143,23 +257,8 @@ service cloud.firestore {
       }
     }
 
-    match /inquiries/{inquiryId} {
-      allow create: if isPublicInquiryPayload();
-      allow read, update, delete: if isAdmin();
-    }
-
-    match /customOrders/{orderId} {
-      allow create: if isPublicCustomOrderPayload();
-      allow read, update, delete: if isAdmin();
-    }
-
-    match /adminUsers/{uid} {
-      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
-      allow write: if isAdmin();
-    }
-
     match /{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if false;
     }
   }
 }

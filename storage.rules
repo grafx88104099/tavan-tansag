@@ -6,8 +6,25 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function isAllowedAdminEmail() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email == 'amardelgerekh@gmail.com';
+    }
+
+    function hasAdminRole() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     function isAdmin() {
-      return isSignedIn() && request.auth.token.admin == true;
+      return isSignedIn()
+        && (
+          request.auth.token.admin == true
+          || isAllowedAdminEmail()
+          || hasAdminRole()
+        );
     }
 
     function isImageUpload() {
@@ -16,31 +33,22 @@ service firebase.storage {
         && request.resource.size < 10 * 1024 * 1024;
     }
 
-    match /public/{allPaths=**} {
-      allow read: if true;
-      allow write: if isAdmin() && isImageUpload();
+    function isVideoUpload() {
+      return request.resource != null
+        && request.resource.contentType.matches('video/.*')
+        && request.resource.size < 150 * 1024 * 1024;
     }
 
     match /products/{allPaths=**} {
       allow read: if true;
-      allow write: if isAdmin() && isImageUpload();
+      allow create, update: if isAdmin() && isImageUpload();
+      allow delete: if isAdmin();
     }
 
-    match /brand/{allPaths=**} {
+    match /admin/heritage/{allPaths=**} {
       allow read: if true;
-      allow write: if isAdmin() && isImageUpload();
-    }
-
-    match /custom-orders/{allPaths=**} {
-      allow read, write: if isAdmin();
-    }
-
-    match /inquiries/{allPaths=**} {
-      allow read, write: if isAdmin();
-    }
-
-    match /admin/{allPaths=**} {
-      allow read, write: if isAdmin();
+      allow create, update: if isAdmin() && isVideoUpload();
+      allow delete: if isAdmin();
     }
 
     match /{allPaths=**} {

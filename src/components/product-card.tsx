@@ -21,7 +21,12 @@ type ProductCardProps = {
 };
 
 export function ProductCard({ product, displayName, displayCategory }: ProductCardProps) {
-  const productImage = PlaceHolderImages.find((p) => p.id === product.images[0]);
+  const productImage = product.coverImageUrl
+    ? {
+        imageUrl: product.coverImageUrl,
+        imageHint: product.coverImageHint ?? 'product image',
+      }
+    : PlaceHolderImages.find((p) => p.id === product.images[0]);
   const name = displayName ?? getProductDisplayName(product);
   const category = displayCategory ?? getCategoryLabel(product.category);
   const description = getProductDisplayDescription(product);

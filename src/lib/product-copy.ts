@@ -68,11 +68,23 @@ const productCopy: Record<string, { name: string; description: string }> = {
   },
 };
 
+function shouldUseFallbackCopy(product: Product) {
+  return !product.createdAt && !product.updatedAt;
+}
+
 export function getProductDisplayName(product: Product) {
+  if (!shouldUseFallbackCopy(product)) {
+    return product.name;
+  }
+
   return productCopy[product.id]?.name ?? product.name;
 }
 
 export function getProductDisplayDescription(product: Product) {
+  if (!shouldUseFallbackCopy(product)) {
+    return product.description;
+  }
+
   return productCopy[product.id]?.description ?? product.description;
 }
 

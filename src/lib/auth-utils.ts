@@ -8,16 +8,29 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'auth/wrong-password': 'Нууц үг буруу байна.',
   'auth/invalid-credential': 'Нэвтрэх мэдээлэл буруу байна.',
   'auth/weak-password': 'Нууц үг дор хаяж 6 тэмдэгт байх ёстой.',
+  'auth/operation-not-allowed': 'Firebase Console дээр Google sign-in provider идэвхжээгүй байна.',
+  'auth/unauthorized-domain': 'Энэ домэйн Firebase Auth-ийн Authorized domains жагсаалтад алга байна.',
+  'auth/account-exists-with-different-credential':
+    'Энэ и-мэйл өөр нэвтрэх аргаар бүртгэлтэй байна. Өмнөх аргаа ашиглан нэвтэрнэ үү.',
+  'auth/operation-not-supported-in-this-environment':
+    'Энэ browser орчин popup нэвтрэлтийг дэмжихгүй байна. Дахин оролдоно уу.',
   'auth/popup-closed-by-user': 'Google нэвтрэх цонх хаагдсан байна.',
   'auth/popup-blocked': 'Browser popup-г хаасан байна. Popup-г зөвшөөрөөд дахин оролдоно уу.',
   'auth/cancelled-popup-request': 'Google нэвтрэх хүсэлт цуцлагдсан.',
   'auth/network-request-failed': 'Сүлжээний алдаа гарлаа. Дахин оролдоно уу.',
   'auth/too-many-requests': 'Хэт олон оролдлого хийсэн байна. Түр хүлээгээд дахин оролдоно уу.',
+  'permission-denied':
+    'Firebase Firestore rules publish хийгдээгүй эсвэл эрх хүрэлцэхгүй байна. Админ нь rules-ээ deploy хийх шаардлагатай.',
+  unavailable: 'Firebase үйлчилгээ түр ажиллахгүй байна. Түр хүлээгээд дахин оролдоно уу.',
+  'failed-precondition': 'Firebase project-ийн шаардлагатай тохиргоо дутуу байна.',
 };
 
 export function getAuthErrorMessage(error: unknown) {
   if (error instanceof FirebaseError) {
-    return AUTH_ERROR_MESSAGES[error.code] ?? 'Нэвтрэх үед алдаа гарлаа. Дахин оролдоно уу.';
+    return (
+      AUTH_ERROR_MESSAGES[error.code] ??
+      `Алдаа гарлаа (${error.code}). Firebase тохиргоо болон rules-ээ шалгана уу.`
+    );
   }
 
   if (error instanceof Error) {

@@ -21,7 +21,15 @@ type AuthPanelProps = {
 export function AuthPanel({ redirectTo }: AuthPanelProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { authStatus, isConfigured, signInWithEmail, signInWithGoogle, signUpWithEmail } = useAuth();
+  const {
+    authStatus,
+    authErrorMessage,
+    clearAuthError,
+    isConfigured,
+    signInWithEmail,
+    signInWithGoogle,
+    signUpWithEmail,
+  } = useAuth();
 
   const [signInEmail, setSignInEmail] = useState('');
   const [signInPassword, setSignInPassword] = useState('');
@@ -37,6 +45,19 @@ export function AuthPanel({ redirectTo }: AuthPanelProps) {
       router.replace(redirectTo);
     }
   }, [authStatus, redirectTo, router]);
+
+  useEffect(() => {
+    if (!authErrorMessage) {
+      return;
+    }
+
+    toast({
+      title: 'Google нэвтрэлт амжилтгүй боллоо',
+      description: authErrorMessage,
+      variant: 'destructive',
+    });
+    clearAuthError();
+  }, [authErrorMessage, clearAuthError, toast]);
 
   async function handleEmailSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

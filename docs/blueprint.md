@@ -5,7 +5,6 @@
 - Dynamic Product Catalog Display: Showcase traditional Mongolian jewelry with comprehensive details (name, category, stone, material, description, size, price) and an interactive image gallery for each item.
 - Intuitive Product Filtering: Enable users to easily filter the product catalog by category and stone type to refine their search for specific jewelry.
 - Detailed Product View Pages: Provide dedicated pages for each jewelry piece, featuring large, premium images and full product specifications.
-- Custom Order & Inquiry System: Allow customers to submit detailed custom order requests or product inquiries through dedicated forms on the 'Custom Order' and 'Contact' pages.
 - Informational Content Pages: Deliver engaging static content for 'About Brand', 'Heritage', and 'Contact' sections, conveying the brand's story and values.
 - Adaptive Responsive Layout: Implement a fluid design that ensures optimal viewing and interaction across all device types, from desktops to mobile phones, supporting a mobile-first user experience.
 - AI-Powered Product Storyteller Tool: Utilize generative AI to craft evocative and culturally rich descriptions for new or existing products, drawing connections to Mongolian traditions and the heritage content.

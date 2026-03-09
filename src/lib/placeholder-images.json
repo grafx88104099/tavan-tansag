@@ -37,18 +37,6 @@
       "imageHint": "artisan workshop"
     },
     {
-      "id": "hero-custom-order",
-      "description": "A detailed sketch of a custom jewelry design.",
-      "imageUrl": "https://picsum.photos/seed/107/1800/600",
-      "imageHint": "jewelry sketch"
-    },
-    {
-      "id": "hero-contact",
-      "description": "A close up of a vintage map showing Mongolia.",
-      "imageUrl": "https://picsum.photos/seed/108/1800/600",
-      "imageHint": "vintage map"
-    },
-    {
       "id": "product-snuff-bottle-1",
       "description": "An ornate silver snuff bottle with turquoise inlay.",
       "imageUrl": "https://picsum.photos/seed/201/800/800",
