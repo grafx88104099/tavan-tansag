@@ -33,6 +33,12 @@ service firebase.storage {
         && request.resource.size < 10 * 1024 * 1024;
     }
 
+    function isPngUpload() {
+      return request.resource != null
+        && request.resource.contentType == 'image/png'
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
     function isVideoUpload() {
       return request.resource != null
         && request.resource.contentType.matches('video/.*')
@@ -48,6 +54,12 @@ service firebase.storage {
     match /admin/heritage/{allPaths=**} {
       allow read: if true;
       allow create, update: if isAdmin() && isVideoUpload();
+      allow delete: if isAdmin();
+    }
+
+    match /admin/footer/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isPngUpload();
       allow delete: if isAdmin();
     }
 

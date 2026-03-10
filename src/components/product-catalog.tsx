@@ -14,8 +14,19 @@ import {
   getProductDisplayName,
 } from '@/lib/product-copy';
 import { getProductCategories } from '@/lib/products';
+import { cn } from '@/lib/utils';
 
-export function ProductCatalog() {
+type ProductCatalogProps = {
+  className?: string;
+  useContainer?: boolean;
+  compactGrid?: boolean;
+};
+
+export function ProductCatalog({
+  className,
+  useContainer = true,
+  compactGrid = false,
+}: ProductCatalogProps) {
   const { products: allProducts } = useCatalogProducts();
   const categories = useMemo(() => ['All', ...getProductCategories(allProducts)], [allProducts]);
 
@@ -49,8 +60,8 @@ export function ProductCatalog() {
     });
   }, [allProducts, categoryFilter, deferredSearch]);
 
-  return (
-    <section className="container py-10 md:py-14">
+  const content = (
+    <>
       <Card className="mb-10 border-primary/12 bg-white/80 p-5 md:p-6">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)]">
           <div className="relative">
@@ -79,7 +90,12 @@ export function ProductCatalog() {
       </Card>
 
       {filteredProducts.length > 0 ? (
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+          className={cn(
+            'grid grid-cols-1 gap-8 sm:grid-cols-2',
+            compactGrid ? '2xl:grid-cols-3' : 'xl:grid-cols-4'
+          )}
+        >
           {filteredProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
@@ -92,6 +108,12 @@ export function ProductCatalog() {
           </p>
         </div>
       )}
-    </section>
+    </>
   );
+
+  if (useContainer) {
+    return <section className={cn('container py-10 md:py-14', className)}>{content}</section>;
+  }
+
+  return <section className={className}>{content}</section>;
 }

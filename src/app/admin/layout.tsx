@@ -5,5 +5,9 @@ export default function AdminLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  return <div className="min-h-screen pb-16">{children}</div>;
+  return (
+    <div className="min-h-screen bg-[linear-gradient(180deg,rgba(255,251,245,0.58),rgba(239,226,209,0.72))] pb-10">
+      {children}
+    </div>
+  );
 }

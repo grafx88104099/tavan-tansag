@@ -40,3 +40,9 @@ export type HeritageReel = {
   posterImageUrl: string | null;
   updatedAt: Date | null;
 };
+
+export type FooterMark = {
+  imageUrl: string | null;
+  imagePath: string | null;
+  updatedAt: Date | null;
+};

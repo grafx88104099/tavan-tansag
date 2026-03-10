@@ -11,13 +11,19 @@ import {
 } from 'firebase/firestore';
 
 import { firestoreDb } from '@/lib/firebase';
-import type { HeritageReel, Product, UserProfile } from '@/lib/types';
+import type { FooterMark, HeritageReel, Product, UserProfile } from '@/lib/types';
 
 const FALLBACK_HERITAGE_REEL: HeritageReel = {
   title: '',
   videoUrl: null,
   videoPath: null,
   posterImageUrl: null,
+  updatedAt: null,
+};
+
+const FALLBACK_FOOTER_MARK: FooterMark = {
+  imageUrl: null,
+  imagePath: null,
   updatedAt: null,
 };
 
@@ -79,6 +85,18 @@ function normalizeHeritageReel(data: Record<string, unknown> | undefined): Herit
     videoUrl: typeof data.videoUrl === 'string' ? data.videoUrl : null,
     videoPath: typeof data.videoPath === 'string' ? data.videoPath : null,
     posterImageUrl: typeof data.posterImageUrl === 'string' ? data.posterImageUrl : null,
+    updatedAt: normalizeTimestamp(data.updatedAt),
+  };
+}
+
+function normalizeFooterMark(data: Record<string, unknown> | undefined): FooterMark {
+  if (!data) {
+    return FALLBACK_FOOTER_MARK;
+  }
+
+  return {
+    imageUrl: typeof data.imageUrl === 'string' ? data.imageUrl : null,
+    imagePath: typeof data.imagePath === 'string' ? data.imagePath : null,
     updatedAt: normalizeTimestamp(data.updatedAt),
   };
 }
@@ -221,5 +239,41 @@ export function useUserProfiles() {
       isLoading,
     }),
     [isLoading, userProfiles]
+  );
+}
+
+export function useFooterMark() {
+  const [footerMark, setFooterMark] = useState<FooterMark>(FALLBACK_FOOTER_MARK);
+  const [isLoading, setIsLoading] = useState(Boolean(firestoreDb));
+
+  useEffect(() => {
+    if (!firestoreDb) {
+      setFooterMark(FALLBACK_FOOTER_MARK);
+      setIsLoading(false);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(firestoreDb, 'siteSettings', 'footer'),
+      (snapshot) => {
+        setFooterMark(normalizeFooterMark(snapshot.data()));
+        setIsLoading(false);
+      },
+      () => {
+        setFooterMark(FALLBACK_FOOTER_MARK);
+        setIsLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
+  return useMemo(
+    () => ({
+      footerMark,
+      isLoading,
+      hasImage: Boolean(footerMark.imageUrl),
+    }),
+    [footerMark, isLoading]
   );
 }

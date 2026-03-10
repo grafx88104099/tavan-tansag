@@ -12,14 +12,20 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
+  ArrowUpRight,
   Check,
+  ImageIcon,
+  LayoutDashboard,
   Loader2,
   LogOut,
+  Package2,
   Pencil,
   Plus,
   ShieldCheck,
   Trash2,
+  type LucideIcon,
   UserRound,
+  Users2,
   Video,
   X,
 } from 'lucide-react';
@@ -50,7 +56,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { useCatalogProducts, useHeritageReel, useUserProfiles } from '@/hooks/use-store-data';
+import { useCatalogProducts, useFooterMark, useHeritageReel, useUserProfiles } from '@/hooks/use-store-data';
 import { useToast } from '@/hooks/use-toast';
 import { ADMIN_EMAILS } from '@/lib/admin-access';
 import { getAuthErrorMessage, getProviderLabel, getUserInitial } from '@/lib/auth-utils';
@@ -83,7 +89,18 @@ type DeleteDialogState =
     }
   | {
       kind: 'heritage';
+    }
+  | {
+      kind: 'footer';
     };
+
+type AdminSectionValue = 'products' | 'heritage' | 'footer' | 'profile';
+
+type AdminSectionDefinition = {
+  value: AdminSectionValue;
+  label: string;
+  icon: LucideIcon;
+};
 
 const DEFAULT_PRODUCT_FORM: ProductFormState = {
   id: null,
@@ -94,6 +111,29 @@ const DEFAULT_PRODUCT_FORM: ProductFormState = {
   thumbnailImageId: null,
   createdAt: null,
 };
+
+const ADMIN_SECTIONS: AdminSectionDefinition[] = [
+  {
+    value: 'products',
+    label: 'Бүтээгдэхүүн',
+    icon: Package2,
+  },
+  {
+    value: 'heritage',
+    label: 'Reel видео',
+    icon: Video,
+  },
+  {
+    value: 'footer',
+    label: 'Footer тэмдэг',
+    icon: ImageIcon,
+  },
+  {
+    value: 'profile',
+    label: 'Админ профайл',
+    icon: Users2,
+  },
+];
 
 function getFileExtension(file: File) {
   const extension = file.name.split('.').pop()?.toLowerCase();
@@ -176,6 +216,7 @@ export function AdminConsole() {
     hasRemoteProducts,
   } = useCatalogProducts();
   const { heritageReel } = useHeritageReel();
+  const { footerMark } = useFooterMark();
   const { userProfiles, isLoading: isUsersLoading } = useUserProfiles();
 
   const [adminEmail, setAdminEmail] = useState('');
@@ -193,18 +234,69 @@ export function AdminConsole() {
   const [heritageVideoFile, setHeritageVideoFile] = useState<File | null>(null);
   const [isSavingHeritage, setIsSavingHeritage] = useState(false);
   const [isRemovingHeritage, setIsRemovingHeritage] = useState(false);
+  const [footerImageFile, setFooterImageFile] = useState<File | null>(null);
+  const [isSavingFooterMark, setIsSavingFooterMark] = useState(false);
+  const [isRemovingFooterMark, setIsRemovingFooterMark] = useState(false);
   const [isUpdatingUserRoleId, setIsUpdatingUserRoleId] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
+  const [activeSection, setActiveSection] = useState<AdminSectionValue>('products');
   const productImageFilesRef = useRef<ProductImageDraft[]>([]);
 
   const allowedAdminEmailsLabel = ADMIN_EMAILS.join(', ');
   const placeholderPoster = PlaceHolderImages.find((item) => item.id === 'hero-heritage')?.imageUrl ?? null;
   const effectivePosterImage = heritagePosterImageUrl || heritageReel.posterImageUrl || placeholderPoster;
+  const footerImagePreview = useMemo(
+    () => (footerImageFile ? URL.createObjectURL(footerImageFile) : null),
+    [footerImageFile]
+  );
+  const effectiveFooterMarkImage = footerImagePreview || footerMark.imageUrl || '/footer-mark.svg';
   const orderedProducts = useMemo(
     () => [...products].sort((a, b) => a.name.localeCompare(b.name)),
     [products]
   );
   const liveProducts = hasRemoteProducts ? orderedProducts : [];
+  const adminUsersCount = useMemo(() => {
+    const emails = new Set(
+      ADMIN_EMAILS.map((email) => email.trim().toLowerCase()).filter(Boolean)
+    );
+
+    userProfiles.forEach((userProfile) => {
+      if (userProfile.role === 'admin' && userProfile.email) {
+        emails.add(userProfile.email.trim().toLowerCase());
+      }
+    });
+
+    return emails.size;
+  }, [userProfiles]);
+  const overviewCards = useMemo(
+    () => [
+      {
+        label: 'Live бүтээгдэхүүн',
+        value: String(liveProducts.length),
+        description: 'Нүүр хуудсан дээр харагдаж буй card-ууд',
+        icon: Package2,
+      },
+      {
+        label: 'Reel төлөв',
+        value: heritageReel.videoUrl ? 'Live' : 'Empty',
+        description: heritageReel.videoUrl ? 'Видео ачаалсан' : 'Видео оруулаагүй',
+        icon: Video,
+      },
+      {
+        label: 'Footer тэмдэг',
+        value: footerMark.imageUrl ? 'Custom' : 'Default',
+        description: footerMark.imageUrl ? 'PNG тэмдэг идэвхтэй' : 'Default asset ажиллаж байна',
+        icon: ImageIcon,
+      },
+      {
+        label: 'Админ access',
+        value: String(adminUsersCount),
+        description: `${userProfiles.length} бүртгэлтэй хэрэглэгчээс`,
+        icon: Users2,
+      },
+    ],
+    [adminUsersCount, footerMark.imageUrl, heritageReel.videoUrl, liveProducts.length, userProfiles.length]
+  );
   const productImageOptions = useMemo(
     () => [
       ...productForm.galleryImages.map((image) => ({
@@ -224,17 +316,29 @@ export function AdminConsole() {
     productImageOptions.find((image) => image.id === productForm.thumbnailImageId) ?? productImageOptions[0] ?? null;
   const effectiveProductPreview = selectedProductImage?.url ?? null;
   const deleteDialogTitle =
-    deleteDialog?.kind === 'product' ? 'Бүтээгдэхүүнийг устгах уу?' : 'Өв соёлын видеог устгах уу?';
+    deleteDialog?.kind === 'product'
+      ? 'Бүтээгдэхүүнийг устгах уу?'
+      : deleteDialog?.kind === 'heritage'
+        ? 'Нүүр хуудасны видеог устгах уу?'
+        : 'Footer зургийг устгах уу?';
   const deleteDialogDescription =
     deleteDialog?.kind === 'product'
       ? `"${deleteDialog.product.name}" бүтээгдэхүүн нүүр хуудасны каталогоос бүрэн устах бөгөөд энэ үйлдлийг буцаах боломжгүй.`
-      : 'Одоогийн heritage reel video болон холбогдсон зам устах бөгөөд /heritage хуудсанд placeholder төлөв үлдэнэ.';
+      : deleteDialog?.kind === 'heritage'
+        ? 'Одоогийн reel video болон холбогдсон зам устах бөгөөд нүүр хуудсан дээр placeholder төлөв үлдэнэ.'
+        : 'Footer-ийн одоогийн зураг устаж, систем default тэмдэг рүү буцна.';
   const deleteDialogActionLabel =
-    deleteDialog?.kind === 'product' ? 'Бүтээгдэхүүн устгах' : 'Видео устгах';
+    deleteDialog?.kind === 'product'
+      ? 'Бүтээгдэхүүн устгах'
+      : deleteDialog?.kind === 'heritage'
+        ? 'Видео устгах'
+        : 'Зураг устгах';
   const isDeleteActionPending =
     deleteDialog?.kind === 'product'
       ? isDeletingProductId === deleteDialog.product.id
-      : isRemovingHeritage;
+      : deleteDialog?.kind === 'heritage'
+        ? isRemovingHeritage
+        : isRemovingFooterMark;
 
   useEffect(() => {
     setHeritageTitle(heritageReel.title);
@@ -244,6 +348,14 @@ export function AdminConsole() {
   useEffect(() => {
     productImageFilesRef.current = productImageFiles;
   }, [productImageFiles]);
+
+  useEffect(() => {
+    return () => {
+      if (footerImagePreview) {
+        URL.revokeObjectURL(footerImagePreview);
+      }
+    };
+  }, [footerImagePreview]);
 
   useEffect(() => {
     return () => {
@@ -690,7 +802,7 @@ export function AdminConsole() {
 
       toast({
         title: 'Heritage video шинэчлэгдлээ',
-        description: '/heritage хуудас live шинэчлэгдэнэ.',
+        description: 'Нүүр хуудасны reel хэсэг live шинэчлэгдэнэ.',
       });
       setHeritageVideoFile(null);
     } catch (error) {
@@ -701,6 +813,72 @@ export function AdminConsole() {
       });
     } finally {
       setIsSavingHeritage(false);
+    }
+  }
+
+  async function handleSaveFooterMark(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!firestoreDb || !firebaseStorage) {
+      toast({
+        title: 'Firebase бүрэн холбогдоогүй байна',
+        description: 'Firestore болон Storage тохиргоог шалгана уу.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!footerImageFile) {
+      toast({
+        title: 'PNG зураг сонгоно уу',
+        description: 'Footer зураг солихын тулд эхлээд PNG файл upload хийнэ үү.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (footerImageFile.type !== 'image/png') {
+      toast({
+        title: 'PNG формат шаардлагатай',
+        description: 'Footer зураг зөвхөн PNG форматтай байна.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsSavingFooterMark(true);
+
+      if (footerMark.imagePath) {
+        await deleteObject(ref(firebaseStorage, footerMark.imagePath)).catch(() => null);
+      }
+
+      const storagePath = `admin/footer/footer-mark-${Date.now()}.png`;
+      const storageRef = ref(firebaseStorage, storagePath);
+      await uploadBytes(storageRef, footerImageFile, {
+        contentType: footerImageFile.type,
+      });
+      const imageUrl = await getDownloadURL(storageRef);
+
+      await setDoc(doc(firestoreDb, 'siteSettings', 'footer'), {
+        imageUrl,
+        imagePath: storagePath,
+        updatedAt: serverTimestamp(),
+      });
+
+      toast({
+        title: 'Footer зураг шинэчлэгдлээ',
+        description: 'Public footer дээр шууд шинэ зураг харагдана.',
+      });
+      setFooterImageFile(null);
+    } catch (error) {
+      toast({
+        title: 'Footer зураг хадгалж чадсангүй',
+        description: getAuthErrorMessage(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingFooterMark(false);
     }
   }
 
@@ -726,7 +904,7 @@ export function AdminConsole() {
 
       toast({
         title: 'Heritage video устлаа',
-        description: '/heritage хуудсанд placeholder frame үлдэнэ.',
+        description: 'Нүүр хуудасны reel хэсэгт placeholder төлөв үлдэнэ.',
       });
       setHeritageVideoFile(null);
       return true;
@@ -742,6 +920,42 @@ export function AdminConsole() {
     }
   }
 
+  async function handleRemoveFooterMark() {
+    if (!firestoreDb) {
+      return false;
+    }
+
+    try {
+      setIsRemovingFooterMark(true);
+
+      if (footerMark.imagePath && firebaseStorage) {
+        await deleteObject(ref(firebaseStorage, footerMark.imagePath)).catch(() => null);
+      }
+
+      await setDoc(doc(firestoreDb, 'siteSettings', 'footer'), {
+        imageUrl: null,
+        imagePath: null,
+        updatedAt: serverTimestamp(),
+      });
+
+      toast({
+        title: 'Footer зураг устлаа',
+        description: 'Default footer тэмдэг дахин ашиглагдана.',
+      });
+      setFooterImageFile(null);
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Footer зураг устгаж чадсангүй',
+        description: getAuthErrorMessage(error),
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsRemovingFooterMark(false);
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!deleteDialog) {
       return;
@@ -750,7 +964,9 @@ export function AdminConsole() {
     const didDelete =
       deleteDialog.kind === 'product'
         ? await handleDeleteProduct(deleteDialog.product)
-        : await handleRemoveHeritageVideo();
+        : deleteDialog.kind === 'heritage'
+          ? await handleRemoveHeritageVideo()
+          : await handleRemoveFooterMark();
 
     if (didDelete) {
       setDeleteDialog(null);
@@ -864,23 +1080,108 @@ export function AdminConsole() {
 
   return (
     <>
-      <Tabs defaultValue="products" className="space-y-6">
-      <div className="section-shell flex flex-col gap-4 px-6 py-6 md:flex-row md:items-center md:justify-between md:px-8">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Admin area</p>
-          <h1 className="mt-2 text-3xl font-semibold md:text-4xl">Энгийн удирдлагын хэсэг</h1>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">
-            Зөвхөн нүүр хуудасны бүтээгдэхүүн, heritage video, admin profile-г эндээс удирдана.
-          </p>
-        </div>
-        <TabsList className="h-auto flex-wrap justify-start rounded-[1.4rem] bg-primary/8 p-1.5">
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="heritage">Heritage Video</TabsTrigger>
-          <TabsTrigger value="profile">Admin Profile</TabsTrigger>
-        </TabsList>
-      </div>
+      <Tabs
+        value={activeSection}
+        onValueChange={(value) => setActiveSection(value as AdminSectionValue)}
+        className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]"
+      >
+        <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
+          <div className="overflow-hidden rounded-[2rem] border border-primary/15 bg-[linear-gradient(180deg,rgba(255,251,245,0.96),rgba(247,238,226,0.92))] shadow-[0_28px_70px_rgba(67,46,20,0.14)]">
+            <div className="space-y-6 p-5 md:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">
+                    Backoffice
+                  </Badge>
+                  <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground">Админ</h1>
+                </div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.2rem] border border-primary/15 bg-primary/10 text-primary">
+                  <LayoutDashboard className="h-5 w-5" />
+                </div>
+              </div>
 
-      <TabsContent value="products" className="space-y-6">
+              <div className="rounded-[1.6rem] border border-primary/12 bg-white/75 p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Signed in as
+                </p>
+                <div className="mt-3 flex items-center gap-3">
+                  <Avatar className="h-11 w-11 border border-primary/15">
+                    <AvatarImage
+                      src={profile?.photoURL ?? currentUser.photoURL ?? undefined}
+                      alt={profile?.displayName ?? currentUser.email ?? 'Admin'}
+                    />
+                    <AvatarFallback className="bg-primary/12 font-semibold text-primary">
+                      {getUserInitial(profile?.displayName, currentUser.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-foreground">
+                      {profile?.displayName ?? currentUser.email ?? 'Admin'}
+                    </p>
+                    <p className="truncate text-sm text-muted-foreground">{currentUser.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  Цэс
+                </p>
+                <TabsList className="grid h-auto w-full gap-1 rounded-[1.5rem] border border-primary/12 bg-white/75 p-2">
+                  {ADMIN_SECTIONS.map((section) => {
+                    const SectionIcon = section.icon;
+
+                    return (
+                      <TabsTrigger
+                        key={section.value}
+                        value={section.value}
+                        className="h-11 w-full justify-start gap-3 rounded-[1rem] border-0 bg-transparent px-3.5 text-left text-sm font-medium text-foreground/72 shadow-none transition-colors duration-200 hover:bg-primary/8 hover:text-foreground data-[state=active]:bg-primary/12 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                      >
+                        <SectionIcon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{section.label}</span>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
+
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/">
+                  Сайт руу харах
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </aside>
+
+        <div className="min-w-0 space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+            {overviewCards.map((card) => {
+              const CardIcon = card.icon;
+
+              return (
+                <Card key={card.label} className="border-primary/12 bg-white/88 shadow-[0_18px_40px_rgba(67,46,20,0.08)]">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                          {card.label}
+                        </p>
+                        <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{card.value}</p>
+                      </div>
+                      <div className="flex h-11 w-11 items-center justify-center rounded-[1rem] border border-primary/15 bg-primary/10 text-primary">
+                        <CardIcon className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <p className="mt-4 text-sm leading-7 text-muted-foreground">{card.description}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <TabsContent value="products" className="mt-0 space-y-6">
         <Card className="border-primary/12 bg-white/88">
           <CardHeader className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
@@ -1201,13 +1502,13 @@ export function AdminConsole() {
         </DialogContent>
       </Dialog>
 
-      <TabsContent value="heritage" className="space-y-6">
+      <TabsContent value="heritage" className="mt-0 space-y-6">
         <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
           <Card className="border-primary/12 bg-white/88">
             <CardHeader>
-              <CardTitle>Өв соёл хуудасны видео</CardTitle>
+              <CardTitle>Нүүр хуудасны reel видео</CardTitle>
               <CardDescription>
-                `/heritage` дээр тоглох ганц reel video-г эндээс upload хийж солино.
+                Нүүр хуудасны зүүн талд харагдах ганц reel video-г эндээс upload хийж солино.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1263,7 +1564,7 @@ export function AdminConsole() {
           <Card className="border-primary/12 bg-white/88">
             <CardHeader>
               <CardTitle>Одоогийн preview</CardTitle>
-              <CardDescription>Хадгалсан даруйд `/heritage` хуудас дээр ижил хэлбэрээр харагдана.</CardDescription>
+              <CardDescription>Хадгалсан даруйд нүүр хуудсан дээр ижил хэлбэрээр харагдана.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="mx-auto max-w-[320px] overflow-hidden rounded-[2rem] border border-primary/12 bg-[rgba(44,28,12,0.12)] p-3">
@@ -1295,7 +1596,87 @@ export function AdminConsole() {
         </div>
       </TabsContent>
 
-      <TabsContent value="profile" className="space-y-6">
+      <TabsContent value="footer" className="mt-0 space-y-6">
+        <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+          <Card className="border-primary/12 bg-white/88">
+            <CardHeader>
+              <CardTitle>Footer-ийн урд зураг</CardTitle>
+              <CardDescription>
+                Footer текстийн урд харагдах PNG зургийг эндээс upload хийж солино.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-5" onSubmit={handleSaveFooterMark}>
+                <div className="space-y-2">
+                  <Label htmlFor="footer-image">PNG зураг upload</Label>
+                  <Input
+                    id="footer-image"
+                    type="file"
+                    accept="image/png"
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                      setFooterImageFile(event.target.files?.[0] ?? null)
+                    }
+                  />
+                  <p className="text-xs leading-6 text-muted-foreground">
+                    Footer тэмдэг зөвхөн PNG форматтай байна. Хадгалмагц public footer дээр шууд солигдоно.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button type="submit" disabled={isSavingFooterMark}>
+                    {isSavingFooterMark ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Footer зураг хадгалах
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDeleteDialog({ kind: 'footer' })}
+                    disabled={isRemovingFooterMark || (!footerMark.imageUrl && !footerMark.imagePath)}
+                  >
+                    {isRemovingFooterMark ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    Зураг устгах
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/12 bg-white/88">
+            <CardHeader>
+              <CardTitle>Footer preview</CardTitle>
+              <CardDescription>
+                Зургийн өндөр нь footer текстийн өндөртэй тэнцүү харагдахаар public footer дээр ашиглагдана.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-[1.8rem] border border-primary/12 bg-white/72 p-5">
+                <div className="flex items-stretch gap-4">
+                  <div className="hidden shrink-0 self-stretch sm:flex sm:items-stretch">
+                    <img
+                      src={effectiveFooterMarkImage}
+                      alt="Footer mark preview"
+                      className="h-full w-auto max-w-[4.5rem] object-contain"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="space-y-1 text-sm leading-5 text-foreground/80">
+                      <p>Утас: 8811 1323</p>
+                      <p>Мэйл хаяг: amardelgerekh@gmail.com</p>
+                      <p>Хаяг: Урт цагааны гудамж Таван тансаг</p>
+                      <p>Web: tavan-tansag.mn</p>
+                    </div>
+                    <div className="mt-3 border-t border-border/60 pt-3 text-sm text-muted-foreground">
+                      <p>&copy; 2026 Таван тансаг. Бүх эрх хуулиар хамгаалагдсан.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="profile" className="mt-0 space-y-6">
         <Card className="border-primary/12 bg-white/88">
           <CardHeader>
             <CardTitle>Админ профайл</CardTitle>
@@ -1456,6 +1837,7 @@ export function AdminConsole() {
           </CardContent>
         </Card>
       </TabsContent>
+        </div>
       </Tabs>
 
       <AlertDialog
