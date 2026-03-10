@@ -42,28 +42,23 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-white">
-      <div className="border-b border-border/50">
-        <div className="container flex items-center justify-between gap-4 py-4">
-          <Logo />
-          <p className="text-right text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground md:text-sm">
-            {BRAND_SLOGAN}
-          </p>
-        </div>
-      </div>
+      <div className="container flex min-h-[5rem] items-center gap-4">
+        <Logo />
 
-      <div className="container flex min-h-[4.5rem] items-center justify-between gap-4">
         <nav className="hidden xl:flex items-center gap-2">
           {navLinks.map((link) => (
             <NavLink key={link.href} {...link} />
           ))}
         </nav>
 
-        <div className="ml-auto hidden items-center gap-3 xl:flex">
+        <div className="ml-auto hidden items-center gap-4 xl:flex">
+          <p className="max-w-[18rem] text-right text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            {BRAND_SLOGAN}
+          </p>
           <AccountControls />
         </div>
 
-        <div className="flex w-full items-center justify-between xl:hidden">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Цэс</p>
+        <div className="ml-auto flex items-center xl:hidden">
           <Sheet open={isMobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild className="xl:hidden">
               <Button variant="ghost" size="icon">

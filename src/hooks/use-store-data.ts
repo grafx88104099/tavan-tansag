@@ -56,6 +56,11 @@ function normalizeProduct(id: string, data: Record<string, unknown>): Product | 
     size: data.size,
     price: data.price,
     images: Array.isArray(data.images) ? data.images.filter((item): item is string => typeof item === 'string') : [],
+    imagePaths: Array.isArray(data.imagePaths)
+      ? data.imagePaths.map((item) => (typeof item === 'string' ? item : null))
+      : typeof data.coverImagePath === 'string'
+        ? [data.coverImagePath]
+        : [],
     coverImageUrl: typeof data.coverImageUrl === 'string' ? data.coverImageUrl : null,
     coverImagePath: typeof data.coverImagePath === 'string' ? data.coverImagePath : null,
     coverImageHint: typeof data.coverImageHint === 'string' ? data.coverImageHint : null,

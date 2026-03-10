@@ -144,6 +144,7 @@ service cloud.firestore {
           'size',
           'price',
           'images',
+          'imagePaths',
           'coverImageUrl',
           'coverImagePath',
           'coverImageHint',
@@ -158,7 +159,7 @@ service cloud.firestore {
         && isValidProductStoneType()
         && isValidProductMaterial()
         && request.resource.data.description is string
-        && request.resource.data.description.size() >= 10
+        && request.resource.data.description.size() >= 2
         && request.resource.data.description.size() <= 3000
         && request.resource.data.size is string
         && request.resource.data.size.size() >= 1
@@ -167,7 +168,17 @@ service cloud.firestore {
         && request.resource.data.price >= 0
         && (
           !('images' in request.resource.data)
-          || request.resource.data.images is list
+          || (
+            request.resource.data.images is list
+            && request.resource.data.images.size() <= 20
+          )
+        )
+        && (
+          !('imagePaths' in request.resource.data)
+          || (
+            request.resource.data.imagePaths is list
+            && request.resource.data.imagePaths.size() <= 20
+          )
         )
         && (
           !('coverImageUrl' in request.resource.data)

@@ -4,12 +4,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { useCatalogProducts } from '@/hooks/use-store-data';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import {
   getCategoryLabel,
   getProductDisplayDescription,
   getProductDisplayName,
 } from '@/lib/product-copy';
+import { getProductGalleryImages } from '@/lib/products';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -47,27 +47,10 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
   const displayName = getProductDisplayName(product);
   const displayDescription = getProductDisplayDescription(product);
   const categoryLabel = getCategoryLabel(product.category);
-  const productImages: Array<{ imageUrl: string; imageHint: string }> = product.coverImageUrl
-    ? [
-        {
-          imageUrl: product.coverImageUrl,
-          imageHint: product.coverImageHint ?? 'product image',
-        },
-      ]
-    : product.images.flatMap((id) => {
-        const placeholder = PlaceHolderImages.find((item) => item.id === id);
-
-        if (!placeholder) {
-          return [];
-        }
-
-        return [
-          {
-            imageUrl: placeholder.imageUrl,
-            imageHint: placeholder.imageHint,
-          },
-        ];
-      });
+  const productImages = getProductGalleryImages(product).map((image) => ({
+    imageUrl: image.url,
+    imageHint: product.coverImageHint ?? 'product image',
+  }));
 
   return (
     <div className="container py-10 md:py-14">

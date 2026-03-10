@@ -8,6 +8,7 @@ export type Product = {
   size: string;
   price: number;
   images: string[];
+  imagePaths?: Array<string | null>;
   coverImageUrl?: string | null;
   coverImagePath?: string | null;
   coverImageHint?: string | null;

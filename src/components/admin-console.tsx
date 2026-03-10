@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   collection,
@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
+  Check,
   Loader2,
   LogOut,
   Pencil,
@@ -20,6 +21,7 @@ import {
   Trash2,
   UserRound,
   Video,
+  X,
 } from 'lucide-react';
 
 import { useAuth } from '@/components/auth-provider';
@@ -54,11 +56,8 @@ import { ADMIN_EMAILS } from '@/lib/admin-access';
 import { getAuthErrorMessage, getProviderLabel, getUserInitial } from '@/lib/auth-utils';
 import { firestoreDb, firebaseStorage } from '@/lib/firebase';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import {
-  getCategoryLabel,
-  getProductDisplayDescription,
-} from '@/lib/product-copy';
-import { PRODUCT_CATEGORIES } from '@/lib/products';
+import { getCategoryLabel } from '@/lib/product-copy';
+import { getProductGalleryImages, PRODUCT_CATEGORIES, type ProductGalleryImage } from '@/lib/products';
 import type { Product, UserProfile } from '@/lib/types';
 
 type ProductFormState = {
@@ -66,10 +65,15 @@ type ProductFormState = {
   name: string;
   category: Product['category'];
   description: string;
-  coverImageUrl: string;
-  images: string[];
+  galleryImages: Array<ProductGalleryImage & { id: string }>;
+  thumbnailImageId: string | null;
   createdAt: Date | null;
-  coverImagePath: string | null;
+};
+
+type ProductImageDraft = {
+  id: string;
+  file: File;
+  previewUrl: string;
 };
 
 type DeleteDialogState =
@@ -86,10 +90,9 @@ const DEFAULT_PRODUCT_FORM: ProductFormState = {
   name: '',
   category: 'Snuff Bottle',
   description: '',
-  coverImageUrl: '',
-  images: [],
+  galleryImages: [],
+  thumbnailImageId: null,
   createdAt: null,
-  coverImagePath: null,
 };
 
 function getFileExtension(file: File) {
@@ -118,15 +121,20 @@ function createProductForm(product?: Product): ProductFormState {
     return DEFAULT_PRODUCT_FORM;
   }
 
+  const galleryImages = getProductGalleryImages(product).map((image, index) => ({
+    id: `existing-${index}`,
+    url: image.url,
+    path: image.path,
+  }));
+
   return {
     id: product.id,
     name: product.name,
     category: product.category,
     description: product.description,
-    coverImageUrl: product.coverImageUrl ?? '',
-    images: product.images,
+    galleryImages,
+    thumbnailImageId: galleryImages[0]?.id ?? null,
     createdAt: product.createdAt ?? null,
-    coverImagePath: product.coverImagePath ?? null,
   };
 }
 
@@ -176,7 +184,7 @@ export function AdminConsole() {
   const [isGooglePending, setIsGooglePending] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [productForm, setProductForm] = useState<ProductFormState>(DEFAULT_PRODUCT_FORM);
-  const [productImageFile, setProductImageFile] = useState<File | null>(null);
+  const [productImageFiles, setProductImageFiles] = useState<ProductImageDraft[]>([]);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [isDeletingProductId, setIsDeletingProductId] = useState<string | null>(null);
@@ -187,6 +195,7 @@ export function AdminConsole() {
   const [isRemovingHeritage, setIsRemovingHeritage] = useState(false);
   const [isUpdatingUserRoleId, setIsUpdatingUserRoleId] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
+  const productImageFilesRef = useRef<ProductImageDraft[]>([]);
 
   const allowedAdminEmailsLabel = ADMIN_EMAILS.join(', ');
   const placeholderPoster = PlaceHolderImages.find((item) => item.id === 'hero-heritage')?.imageUrl ?? null;
@@ -196,14 +205,24 @@ export function AdminConsole() {
     [products]
   );
   const liveProducts = hasRemoteProducts ? orderedProducts : [];
-  const productImagePreview = useMemo(() => {
-    if (!productImageFile) {
-      return null;
-    }
-
-    return URL.createObjectURL(productImageFile);
-  }, [productImageFile]);
-  const effectiveProductPreview = productImagePreview || productForm.coverImageUrl.trim() || null;
+  const productImageOptions = useMemo(
+    () => [
+      ...productForm.galleryImages.map((image) => ({
+        id: image.id,
+        url: image.url,
+        source: 'existing' as const,
+      })),
+      ...productImageFiles.map((image) => ({
+        id: image.id,
+        url: image.previewUrl,
+        source: 'new' as const,
+      })),
+    ],
+    [productForm.galleryImages, productImageFiles]
+  );
+  const selectedProductImage =
+    productImageOptions.find((image) => image.id === productForm.thumbnailImageId) ?? productImageOptions[0] ?? null;
+  const effectiveProductPreview = selectedProductImage?.url ?? null;
   const deleteDialogTitle =
     deleteDialog?.kind === 'product' ? 'Бүтээгдэхүүнийг устгах уу?' : 'Өв соёлын видеог устгах уу?';
   const deleteDialogDescription =
@@ -223,12 +242,16 @@ export function AdminConsole() {
   }, [heritageReel.posterImageUrl, heritageReel.title]);
 
   useEffect(() => {
+    productImageFilesRef.current = productImageFiles;
+  }, [productImageFiles]);
+
+  useEffect(() => {
     return () => {
-      if (productImagePreview) {
-        URL.revokeObjectURL(productImagePreview);
-      }
+      productImageFilesRef.current.forEach((image) => {
+        URL.revokeObjectURL(image.previewUrl);
+      });
     };
-  }, [productImagePreview]);
+  }, []);
 
   useEffect(() => {
     if (!authErrorMessage) {
@@ -354,20 +377,89 @@ export function AdminConsole() {
     }
   }
 
+  function clearProductImageDrafts() {
+    setProductImageFiles((current) => {
+      current.forEach((image) => {
+        URL.revokeObjectURL(image.previewUrl);
+      });
+
+      return [];
+    });
+  }
+
   function handleCreateProduct() {
     resetProductForm();
     setIsProductDialogOpen(true);
   }
 
   function handleEditProduct(product: Product) {
+    clearProductImageDrafts();
     setProductForm(createProductForm(product));
-    setProductImageFile(null);
     setIsProductDialogOpen(true);
   }
 
   function resetProductForm() {
     setProductForm(DEFAULT_PRODUCT_FORM);
-    setProductImageFile(null);
+    clearProductImageDrafts();
+  }
+
+  function handleProductImageSelection(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files ?? []);
+
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const nextDrafts = selectedFiles.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    setProductImageFiles((current) => [...current, ...nextDrafts]);
+    setProductForm((current) => ({
+      ...current,
+      thumbnailImageId: current.thumbnailImageId ?? nextDrafts[0]?.id ?? null,
+    }));
+
+    event.target.value = '';
+  }
+
+  function handleSelectProductThumbnail(imageId: string) {
+    setProductForm((current) => ({
+      ...current,
+      thumbnailImageId: imageId,
+    }));
+  }
+
+  function handleRemoveExistingProductImage(imageId: string) {
+    setProductForm((current) => {
+      const nextGalleryImages = current.galleryImages.filter((image) => image.id !== imageId);
+      const fallbackThumbnailId = nextGalleryImages[0]?.id ?? productImageFiles[0]?.id ?? null;
+
+      return {
+        ...current,
+        galleryImages: nextGalleryImages,
+        thumbnailImageId: current.thumbnailImageId === imageId ? fallbackThumbnailId : current.thumbnailImageId,
+      };
+    });
+  }
+
+  function handleRemoveDraftProductImage(imageId: string) {
+    const draftToRemove = productImageFiles.find((image) => image.id === imageId);
+    if (draftToRemove) {
+      URL.revokeObjectURL(draftToRemove.previewUrl);
+    }
+
+    const nextDrafts = productImageFiles.filter((image) => image.id !== imageId);
+    setProductImageFiles(nextDrafts);
+    setProductForm((current) => ({
+      ...current,
+      thumbnailImageId:
+        current.thumbnailImageId === imageId
+          ? current.galleryImages[0]?.id ?? nextDrafts[0]?.id ?? null
+          : current.thumbnailImageId,
+    }));
   }
 
   async function handleSaveProduct(event: FormEvent<HTMLFormElement>) {
@@ -384,7 +476,8 @@ export function AdminConsole() {
 
     const trimmedName = productForm.name.trim();
     const trimmedDescription = productForm.description.trim();
-    const hasExistingImage = Boolean(productForm.coverImageUrl.trim() || productForm.images.length > 0);
+    const hasExistingImage = productForm.galleryImages.length > 0;
+    const hasNewImage = productImageFiles.length > 0;
 
     if (trimmedName.length < 2 || trimmedDescription.length < 2) {
       toast({
@@ -395,7 +488,7 @@ export function AdminConsole() {
       return;
     }
 
-    if (!productImageFile && !hasExistingImage) {
+    if (!hasExistingImage && !hasNewImage) {
       toast({
         title: 'Зураг дутуу байна',
         description: 'Шинэ бүтээгдэхүүнд дор хаяж нэг зураг upload хийнэ үү.',
@@ -404,25 +497,68 @@ export function AdminConsole() {
       return;
     }
 
+    if (hasNewImage && !firebaseStorage) {
+      toast({
+        title: 'Storage холбогдоогүй байна',
+        description: 'Зураг upload хийхийн тулд Firebase Storage тохиргоог шалгана уу.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setIsSavingProduct(true);
+      const storage = firebaseStorage;
       const productId = productForm.id ?? doc(collection(firestoreDb, 'products')).id;
-      let coverImageUrl = productForm.coverImageUrl.trim() || null;
-      let coverImagePath = productForm.coverImagePath;
+      const existingProduct = productForm.id ? products.find((product) => product.id === productForm.id) ?? null : null;
+      const existingStoredPaths = new Set(
+        (existingProduct ? getProductGalleryImages(existingProduct) : [])
+          .map((image) => image.path)
+          .filter((path): path is string => Boolean(path))
+      );
+      const uploadTimestamp = Date.now();
 
-      if (productImageFile && firebaseStorage) {
-        if (coverImagePath) {
-          await deleteObject(ref(firebaseStorage, coverImagePath)).catch(() => null);
-        }
+      const uploadedImages = await Promise.all(
+        productImageFiles.map(async (image, index) => {
+          const extension = getFileExtension(image.file);
+          const storagePath = `products/${productId}/gallery-${uploadTimestamp}-${index}.${extension}`;
+          const storageRef = ref(storage!, storagePath);
+          await uploadBytes(storageRef, image.file, {
+            contentType: image.file.type,
+          });
 
-        const extension = getFileExtension(productImageFile);
-        const storagePath = `products/${productId}/cover-${Date.now()}.${extension}`;
-        const storageRef = ref(firebaseStorage, storagePath);
-        await uploadBytes(storageRef, productImageFile, {
-          contentType: productImageFile.type,
+          return {
+            id: image.id,
+            url: await getDownloadURL(storageRef),
+            path: storagePath,
+          };
+        })
+      );
+
+      const nextGalleryImages = [...productForm.galleryImages, ...uploadedImages];
+      const selectedThumbnail =
+        nextGalleryImages.find((image) => image.id === productForm.thumbnailImageId) ?? nextGalleryImages[0] ?? null;
+
+      if (!selectedThumbnail) {
+        toast({
+          title: 'Thumbnail сонгогдоогүй байна',
+          description: 'Зургууд дундаас нэгийг thumbnail болгож сонгоно уу.',
+          variant: 'destructive',
         });
-        coverImageUrl = await getDownloadURL(storageRef);
-        coverImagePath = storagePath;
+        return;
+      }
+
+      const retainedPaths = new Set(
+        productForm.galleryImages
+          .map((image) => image.path)
+          .filter((path): path is string => Boolean(path))
+      );
+      const removedPaths = [...existingStoredPaths].filter((path) => !retainedPaths.has(path));
+
+      if (storage && removedPaths.length > 0) {
+        await Promise.all(
+          removedPaths.map((path) => deleteObject(ref(storage, path)).catch(() => null))
+        );
       }
 
       await setDoc(doc(firestoreDb, 'products', productId), {
@@ -433,9 +569,10 @@ export function AdminConsole() {
         description: trimmedDescription,
         size: 'Standard',
         price: 0,
-        images: productForm.images,
-        coverImageUrl,
-        coverImagePath,
+        images: nextGalleryImages.map((image) => image.url),
+        imagePaths: nextGalleryImages.map((image) => image.path),
+        coverImageUrl: selectedThumbnail.url,
+        coverImagePath: selectedThumbnail.path,
         coverImageHint: null,
         createdAt: productForm.createdAt ? Timestamp.fromDate(productForm.createdAt) : serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -465,9 +602,18 @@ export function AdminConsole() {
 
     try {
       setIsDeletingProductId(product.id);
+      const storage = firebaseStorage;
 
-      if (product.coverImagePath && firebaseStorage) {
-        await deleteObject(ref(firebaseStorage, product.coverImagePath)).catch(() => null);
+      if (storage) {
+        const pathsToDelete = new Set(
+          [product.coverImagePath ?? null, ...(product.imagePaths ?? [])].filter(
+            (path): path is string => Boolean(path)
+          )
+        );
+
+        await Promise.all(
+          [...pathsToDelete].map((path) => deleteObject(ref(storage, path)).catch(() => null))
+        );
       }
 
       await deleteDoc(doc(firestoreDb, 'products', product.id));
@@ -772,7 +918,7 @@ export function AdminConsole() {
                       <div>
                         <p className="font-semibold text-foreground">{product.name}</p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {getCategoryLabel(product.category)}
+                          {getCategoryLabel(product.category)} · {getProductGalleryImages(product).length} зураг
                         </p>
                         <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground">
                           {product.description}
@@ -889,14 +1035,84 @@ export function AdminConsole() {
                   <Input
                     id="product-image-file"
                     type="file"
+                    multiple
                     accept="image/*"
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      setProductImageFile(event.target.files?.[0] ?? null)
-                    }
+                    onChange={handleProductImageSelection}
                   />
                   <p className="text-xs leading-6 text-muted-foreground">
-                    Нэг зураг upload хийхэд хангалттай.
+                    Нэг бүтээгдэхүүнд олон зураг upload хийгээд, аль нэгийг нь thumbnail болгож сонгоно.
                   </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Зургийн жагсаалт</Label>
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      Нийт {productImageOptions.length}
+                    </p>
+                  </div>
+
+                  {productImageOptions.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {productImageOptions.map((image) => {
+                        const isSelected = productForm.thumbnailImageId === image.id;
+
+                        return (
+                          <div
+                            key={image.id}
+                            className="overflow-hidden rounded-[1.4rem] border border-primary/12 bg-white/75"
+                          >
+                            <div className="relative aspect-square">
+                              <img
+                                src={image.url}
+                                alt={productForm.name || 'Product image'}
+                                className="h-full w-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSelectProductThumbnail(image.id)}
+                                className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                                  isSelected
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-white/70 bg-white/92 text-foreground'
+                                }`}
+                              >
+                                {isSelected && <Check className="h-3.5 w-3.5" />}
+                                Thumbnail
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  image.source === 'existing'
+                                    ? handleRemoveExistingProductImage(image.id)
+                                    : handleRemoveDraftProductImage(image.id)
+                                }
+                                className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/92 text-foreground transition-colors hover:text-destructive"
+                                aria-label="Зураг устгах"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="border-t border-primary/10 px-3 py-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectProductThumbnail(image.id)}
+                                className={`text-xs font-medium ${
+                                  isSelected ? 'text-primary' : 'text-muted-foreground'
+                                }`}
+                              >
+                                {isSelected ? 'Сонгосон thumbnail' : 'Thumbnail болгох'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-[1.4rem] border border-dashed border-primary/15 bg-white/65 px-4 py-5 text-sm leading-7 text-muted-foreground">
+                      Одоогоор зураг алга байна. Эндээс хэд хэдэн зураг upload хийж эхэлнэ үү.
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -937,23 +1153,46 @@ export function AdminConsole() {
                     {effectiveProductPreview ? (
                       <img
                         src={effectiveProductPreview}
-                        alt={productForm.name || 'Product preview'}
+                        alt={productForm.name || 'Thumbnail preview'}
                         className="h-full w-full object-cover"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center px-6 text-center text-sm leading-7 text-muted-foreground">
-                        Upload хийсэн зураг энд preview хэлбэрээр харагдана.
+                        Thumbnail болгон сонгосон зураг энд том preview хэлбэрээр харагдана.
                       </div>
                     )}
                   </div>
                 </div>
 
+                {productImageOptions.length > 1 && (
+                  <div className="grid grid-cols-4 gap-3">
+                    {productImageOptions.map((image) => (
+                      <button
+                        key={`preview-${image.id}`}
+                        type="button"
+                        onClick={() => handleSelectProductThumbnail(image.id)}
+                        className={`overflow-hidden rounded-[1rem] border ${
+                          productForm.thumbnailImageId === image.id
+                            ? 'border-primary shadow-[0_12px_30px_rgba(67,46,20,0.18)]'
+                            : 'border-primary/12'
+                        }`}
+                      >
+                        <img
+                          src={image.url}
+                          alt="Thumbnail option"
+                          className="aspect-square h-full w-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="rounded-[1.6rem] border border-primary/12 bg-white/72 p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Оруулах мэдээлэл</p>
                   <div className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
-                    <p>Нэр, ангилал, зураг, тайлбар гэсэн 4 үндсэн талбар ашиглана.</p>
-                    <p>Зураг upload хийхэд Storage дээр хадгалагдаж, нүүр хуудсанд автоматаар ашиглагдана.</p>
-                    <p>Хадгалсны дараа каталог шинэчлэгдэж шууд live болно.</p>
+                    <p>Нэр, ангилал, зургууд, тайлбар гэсэн үндсэн мэдээллээ эндээс удирдана.</p>
+                    <p>Upload хийсэн зураг бүр Storage дээр хадгалагдаж, thumbnail сонгосон зураг card дээр харагдана.</p>
+                    <p>Дэлгэрэнгүй хуудсанд бүх зураг carousel хэлбэрээр автоматаар орно.</p>
                   </div>
                 </div>
               </div>

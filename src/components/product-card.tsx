@@ -12,9 +12,9 @@ import {
   hasProductPrice,
   hasProductStone,
 } from '@/lib/product-copy';
+import { getProductThumbnailImage } from '@/lib/products';
 import { Card, CardContent } from '@/components/ui/card';
 import { SaveProductButton } from '@/components/save-product-button';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type ProductCardProps = {
   product: Product;
@@ -23,12 +23,13 @@ type ProductCardProps = {
 };
 
 export function ProductCard({ product, displayName, displayCategory }: ProductCardProps) {
-  const productImage = product.coverImageUrl
+  const thumbnailImage = getProductThumbnailImage(product);
+  const productImage = thumbnailImage
     ? {
-        imageUrl: product.coverImageUrl,
+        imageUrl: thumbnailImage.url,
         imageHint: product.coverImageHint ?? 'product image',
       }
-    : PlaceHolderImages.find((p) => p.id === product.images[0]);
+    : null;
   const name = displayName ?? getProductDisplayName(product);
   const category = displayCategory ?? getCategoryLabel(product.category);
   const description = getProductDisplayDescription(product);
